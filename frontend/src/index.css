@@ -1,0 +1,319 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light Mode Definitions */
+  --bg-primary: #f9fafb;
+  --bg-secondary: #f3f4f6;
+  --bg-tertiary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.7);
+  --bg-card-hover: rgba(255, 255, 255, 0.95);
+  --bg-panel: rgba(255, 255, 255, 0.75);
+  --border-color: rgba(0, 0, 0, 0.08);
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-tertiary: #5b6573;
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+  --code-bg: rgba(0, 0, 0, 0.04);
+  --code-text: #4f46e5;
+  --bubble-user-bg: rgba(99, 102, 241, 0.08);
+  --bubble-user-border: rgba(99, 102, 241, 0.2);
+  --bubble-user-text: #1e1b4b;
+}
+
+.dark {
+  /* Dark Mode Definitions */
+  --bg-primary: #060608;
+  --bg-secondary: #0b0b0e;
+  --bg-tertiary: #171721;
+  --bg-card: rgba(23, 23, 33, 0.45);
+  --bg-card-hover: rgba(23, 23, 33, 0.65);
+  --bg-panel: rgba(11, 11, 14, 0.75);
+  --border-color: rgba(255, 255, 255, 0.05);
+  --text-primary: #f3f4f6;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #52527b;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.06);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.12);
+  --code-bg: rgba(255, 255, 255, 0.05);
+  --code-text: #818cf8;
+  --bubble-user-bg: rgba(99, 102, 241, 0.15);
+  --bubble-user-border: rgba(99, 102, 241, 0.25);
+  --bubble-user-text: #ffffff;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { 
+    font-family: 'Inter', sans-serif; 
+    background: var(--bg-primary); 
+    color: var(--text-primary); 
+    overflow: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+}
+
+@layer components {
+  /* Premium Glassmorphism */
+  .glass-panel {
+    background: var(--bg-panel);
+    backdrop-filter: blur(18px) saturate(120%);
+    border: 1px solid var(--border-color);
+  }
+  
+  .glass-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .glass-card:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(99, 102, 241, 0.18);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.04), 0 0 20px rgba(99, 102, 241, 0.03);
+  }
+
+  .sidebar { 
+    @apply flex flex-col w-72 h-full border-r flex-shrink-0 backdrop-blur-xl transition-colors duration-200; 
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+  }
+  
+  .sidebar-btn { 
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer select-none; 
+    color: var(--text-secondary);
+  }
+  .sidebar-btn:hover {
+    color: var(--text-primary);
+    background: rgba(99, 102, 241, 0.06);
+  }
+  
+  .conv-item { 
+    @apply flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs cursor-pointer transition-all duration-200 border border-transparent; 
+    color: var(--text-secondary);
+  }
+  .conv-item:hover {
+    color: var(--text-primary);
+    background: rgba(99, 102, 241, 0.05);
+  }
+  .conv-item.active { 
+    @apply bg-brand/10 border-brand/20 text-brand shadow-glow-indigo; 
+    color: var(--bubble-user-text);
+  }
+
+  /* Chat Input Area */
+  .input-wrapper { 
+    @apply relative flex flex-col backdrop-blur-md border rounded-2xl shadow-glass transition-all duration-300 focus-within:border-brand/40 focus-within:shadow-glow-indigo; 
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+  }
+  
+  .chat-input { 
+    @apply w-full bg-transparent placeholder-white/20 text-sm resize-none outline-none px-4 pt-4 pb-3 max-h-40 min-h-[56px] leading-relaxed; 
+    color: var(--text-primary);
+    placeholder-color: var(--text-tertiary);
+  }
+  
+  .icon-btn { 
+    @apply flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 cursor-pointer border border-transparent; 
+    color: var(--text-secondary);
+  }
+  .icon-btn:hover {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.04);
+  }
+  
+  .send-btn { 
+    @apply flex items-center justify-center w-9 h-9 rounded-xl text-white transition-all duration-300 cursor-pointer; 
+  }
+
+  /* Message bubbles */
+  .msg-user { 
+    @apply ml-auto border px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-[14px] leading-relaxed; 
+    background: var(--bubble-user-bg);
+    border-color: var(--bubble-user-border);
+    color: var(--bubble-user-text);
+  }
+  .msg-ai { 
+    @apply text-[14px] leading-relaxed font-sans; 
+    color: var(--text-primary);
+  }
+  .msg-action-btn { 
+    @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] border border-transparent transition-all duration-200 cursor-pointer; 
+    color: var(--text-secondary);
+  }
+  .msg-action-btn:hover {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  /* Code blocks & typography overrides */
+  .prose-dark pre { @apply !rounded-2xl !border !my-4 !p-0 overflow-hidden shadow-sm; background: var(--bg-secondary) !important; border-color: var(--border-color) !important; }
+  .prose-dark code { @apply !px-2 !py-0.5 !rounded-lg !text-[0.85em] font-mono; background: var(--code-bg) !important; color: var(--code-text) !important; border: 1px solid var(--border-color) !important; }
+  .prose-dark pre code { @apply !bg-transparent !p-0 !border-0; color: var(--text-primary) !important; }
+  .prose-dark p { color: var(--text-primary) !important; @apply !leading-relaxed !my-3; }
+  .prose-dark h1 { color: var(--text-primary) !important; @apply !font-display !font-semibold !text-xl !mt-6 !mb-3; }
+  .prose-dark h2 { color: var(--text-primary) !important; @apply !font-display !font-semibold !text-lg !mt-5 !mb-2.5; }
+  .prose-dark h3 { color: var(--text-primary) !important; @apply !font-display !font-semibold !text-base !mt-4 !mb-2; }
+  .prose-dark ul, .prose-dark ol { color: var(--text-primary) !important; @apply !my-3 !pl-6; }
+  .prose-dark li { @apply !my-1.5; }
+  .prose-dark table { border-color: var(--border-color) !important; @apply !border-collapse !w-full !my-4 rounded-xl overflow-hidden border; }
+  .prose-dark th, .prose-dark td { border-color: var(--border-color) !important; @apply !border-b !px-4 !py-3 !text-xs; }
+  .prose-dark th { background: var(--bg-secondary) !important; color: var(--text-primary) !important; @apply !font-semibold; }
+  .prose-dark blockquote { @apply !border-l-4 !border-brand !pl-4 !my-4 !italic; color: var(--text-secondary) !important; }
+  .prose-dark a { color: var(--code-text) !important; @apply hover:!text-brand !transition-colors !underline !underline-offset-4; }
+}
+
+/* Streaming blinking cursor */
+.streaming-cursor::after { 
+  content: '▋'; 
+  @apply text-brand animate-blink ml-0.5; 
+}
+
+/* Hero Background and Orbs */
+.hero-gradient { 
+  background: radial-gradient(ellipse 90% 60% at 50% -15%, rgba(99, 102, 241, 0.15) 0%, transparent 80%),
+              radial-gradient(circle 400px at top left, rgba(139, 92, 246, 0.05), transparent),
+              radial-gradient(circle 400px at bottom right, rgba(6, 182, 212, 0.05), transparent); 
+}
+
+.card-gradient { 
+  background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%); 
+}
+
+/* Skeleton shimmer loader */
+.shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+}
+
+/* Light Mode specific utility overrides for text-white variables */
+html:not(.dark) .text-white {
+  color: var(--text-primary) !important;
+}
+html:not(.dark) .text-white\/90 {
+  color: var(--text-primary) !important;
+}
+html:not(.dark) .text-white\/85 {
+  color: var(--text-primary) !important;
+}
+html:not(.dark) .text-white\/80 {
+  color: var(--text-primary) !important;
+}
+html:not(.dark) .text-white\/60 {
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) .text-white\/50 {
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) .text-white\/45 {
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) .text-white\/40 {
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) .text-white\/35 {
+  color: var(--text-tertiary) !important;
+}
+html:not(.dark) .text-white\/30 {
+  color: var(--text-tertiary) !important;
+}
+html:not(.dark) .text-white\/20 {
+  color: var(--text-tertiary) !important;
+}
+html:not(.dark) .text-white\/10 {
+  color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Light Mode specific utility overrides for background, border, and placeholder variables */
+html:not(.dark) .bg-surface-950 {
+  background-color: var(--bg-primary) !important;
+}
+html:not(.dark) .bg-surface-950\/20 {
+  background-color: rgba(0, 0, 0, 0.015) !important;
+}
+html:not(.dark) .bg-surface-900 {
+  background-color: var(--bg-secondary) !important;
+}
+html:not(.dark) .bg-surface-900\/65 {
+  background-color: var(--bg-secondary) !important;
+}
+html:not(.dark) .bg-surface-800 {
+  background-color: #e5e7eb !important;
+}
+html:not(.dark) .bg-black\/30 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+html:not(.dark) .border-white\/5 {
+  border-color: var(--border-color) !important;
+}
+html:not(.dark) .border-white\/10 {
+  border-color: var(--border-color) !important;
+}
+html:not(.dark) .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Theme placeholders */
+html:not(.dark) ::placeholder {
+  color: var(--text-tertiary) !important;
+  opacity: 0.75 !important;
+}
+html:not(.dark) .placeholder-white\/20::placeholder {
+  color: var(--text-tertiary) !important;
+  opacity: 0.75 !important;
+}
+html:not(.dark) textarea::placeholder {
+  color: var(--text-tertiary) !important;
+  opacity: 0.75 !important;
+}
+
+/* Ensure buttons, active elements, and branding badges keep their true white text on dark/colored backdrops */
+html:not(.dark) button.text-white,
+html:not(.dark) button .text-white,
+html:not(.dark) .bg-brand .text-white,
+html:not(.dark) .bg-brand.text-white,
+html:not(.dark) .bg-brand-dark .text-white,
+html:not(.dark) .bg-brand-dark.text-white,
+html:not(.dark) .bg-red-500 .text-white,
+html:not(.dark) .bg-red-600 .text-white,
+html:not(.dark) .bg-emerald-500 .text-white,
+html:not(.dark) .bg-emerald-600 .text-white,
+html:not(.dark) .keep-white,
+html:not(.dark) .keep-white .text-white,
+html:not(.dark) .send-btn .text-white,
+html:not(.dark) .send-btn,
+html:not(.dark) .active .text-white,
+html:not(.dark) .active.text-white {
+  color: #ffffff !important;
+}
+
+/* MLflow Registry button — visible in both light & dark modes */
+.mlflow-btn {
+  color: var(--text-secondary);
+}
+.mlflow-btn:hover {
+  color: var(--text-primary);
+}
+.dark .mlflow-btn {
+  color: rgba(255, 255, 255, 0.70);
+}
+.dark .mlflow-btn:hover {
+  color: #ffffff;
+}
+
+/* Landing hero gradient adapts to light mode */
+html:not(.dark) .hero-gradient {
+  background: radial-gradient(ellipse 90% 60% at 50% -15%, rgba(99, 102, 241, 0.10) 0%, transparent 80%),
+              radial-gradient(circle 400px at top left, rgba(139, 92, 246, 0.04), transparent),
+              radial-gradient(circle 400px at bottom right, rgba(6, 182, 212, 0.04), transparent);
+  background-color: var(--bg-primary);
+}

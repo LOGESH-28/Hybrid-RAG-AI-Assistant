@@ -1,0 +1,45 @@
+# ===== docker-compose.yml =====
+
+services:
+  loki-ai:
+    build: .
+    container_name: loki_ai
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./faiss_index.idx:/app/faiss_index.idx
+      - ./chunks.pkl:/app/chunks.pkl
+      - ./mlflow.db:/app/mlflow.db
+      - ./chat_history.db:/app/chat_history.db
+      - ./hf_cache:/app/hf_cache
+      - ./chroma_db:/app/chroma_db
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: loki_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://loki-ai:8000
+    depends_on:
+      - loki-ai
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: loki_mlflow
+    working_dir: /app
+    volumes:
+      - ./mlflow.db:/app/mlflow.db
+      - ./mlruns:/app/mlruns
+    ports:
+      - "5000:5000"
+    command: mlflow server --backend-store-uri sqlite:///app/mlflow.db --host 0.0.0.0 --port 5000 --default-artifact-root /app/mlruns
+    restart: unless-stopped

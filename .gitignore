@@ -1,0 +1,78 @@
+# ─── Secrets & Environment ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Generated AI / Vector Store files ───────────────────────────────────────
+faiss_index.idx
+chunks.pkl
+chroma_db/
+hf_cache/
+
+# ─── Data directories (uploaded docs, raw data, etc.) ────────────────────────
+data/
+
+# ─── MLflow ──────────────────────────────────────────────────────────────────
+mlflow.db
+mlruns/
+
+# ─── SQLite databases ─────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ─── Virtual Environments ────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Node / Frontend ─────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/build/
+.next/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Caches ──────────────────────────────────────────────────────────────────
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Docker ──────────────────────────────────────────────────────────────────
+# (docker-compose.yml is intentionally committed)
+
+# ─── Media / Large binaries ──────────────────────────────────────────────────
+*.mp4
+*.zip
+*.tar
+*.gz
+*.pkl
+*.bin
+*.pt
+*.pth
+*.onnx
+models/
+checkpoints/
+datasets/
+
+# ─── OS artifacts ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

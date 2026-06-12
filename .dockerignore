@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# Git
+.git/
+.gitignore
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Cache
+.cache/
+.pytest_cache/
+
+# Large AI/Data files
+models/
+checkpoints/
+datasets/
+data/
+
+# Media
+*.mp4
+*.zip
+*.tar
+*.gz
+
+# OS
+.DS_Store
+Thumbs.db
