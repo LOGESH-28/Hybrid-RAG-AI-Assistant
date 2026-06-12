@@ -16,9 +16,8 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Loki AI Enterprise API", version="3.0", docs_url="/docs")
 
-# ── Instant health check (HuggingFace Spaces / Docker probe) ─────────────────
-# This MUST be the first route — returns before any heavy component loads.
-@app.get("/")
+# ── Health check endpoint ────────────────────────────────────────────────────
+@app.get("/health")
 def root_health():
     return {"status": "healthy", "app": "Loki AI", "version": "3.0"}
 
@@ -549,6 +548,38 @@ async def chroma_status():
         return {"available": False, "doc_count": 0}
     return {"available": True, "doc_count": chroma_store.count()}
 
+# ── Serve React frontend (must be LAST — catches all unmatched routes) ────────
+# FastAPI serves the built Vite output so both UI and API share port 7860.
+_FRONTEND_DIST = os.path.join(ROOT_DIR, "frontend", "dist")
+if os.path.exists(_FRONTEND_DIST):
+    from fastapi.responses import FileResponse as _FileResponse
+    app.mount("/assets", StaticFiles(directory=os.path.join(_FRONTEND_DIST, "assets")), name="frontend_assets")
+
+    @app.get("/")
+    def serve_ui_root():
+        return _FileResponse(os.path.join(_FRONTEND_DIST, "index.html"))
+
+    @app.get("/{full_path:path}")
+    def serve_ui_spa(full_path: str):
+        """Catch-all: serve React index.html for any non-API route (React Router support)."""
+        _api_prefixes = (
+            "ask", "upload", "files", "clear", "status", "stats",
+            "admin", "agent", "chroma", "sessions", "memory", "chat",
+            "tools", "warmup", "health", "docs", "openapi", "data",
+        )
+        if any(full_path.startswith(p) for p in _api_prefixes):
+            raise HTTPException(404, detail="Not found")
+        file_path = os.path.join(_FRONTEND_DIST, full_path)
+        if os.path.isfile(file_path):
+            return _FileResponse(file_path)
+        return _FileResponse(os.path.join(_FRONTEND_DIST, "index.html"))
+else:
+    # No built frontend — keep a plain root health check as fallback
+    @app.get("/")
+    def serve_fallback():
+        return {"status": "healthy", "app": "Loki AI", "version": "3.0", "ui": "not built"}
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=7860)

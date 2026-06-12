@@ -1,39 +1,41 @@
-# ===== Dockerfile (HuggingFace Spaces optimized) =====
+# ===== Dockerfile (HuggingFace Spaces — Single Container) =====
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# System dependencies
-# libgomp1  → required by faiss-cpu for OpenMP threading
-# tesseract → OCR support
+# ── System dependencies ───────────────────────────────────────────────────────
+# libgomp1  → FAISS OpenMP threading
+# nodejs    → React frontend build
 RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libgomp1 \
+    gcc g++ libgomp1 \
     tesseract-ocr \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgl1 \
-    libffi-dev \
+    libglib2.0-0 libsm6 libxext6 libxrender-dev libgl1 libffi-dev \
+    curl gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# HuggingFace cache inside container (avoids re-download each restart)
+# ── HuggingFace cache env ─────────────────────────────────────────────────────
 ENV HF_HOME=/app/hf_cache
 ENV SENTENCE_TRANSFORMERS_HOME=/app/hf_cache
 ENV TRANSFORMERS_CACHE=/app/hf_cache
-# Disable HF telemetry
 ENV HF_HUB_DISABLE_TELEMETRY=1
 
-# Copy requirements and install (cache layer)
+# ── Python deps (cached layer) ────────────────────────────────────────────────
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
+# ── React frontend build (cached layer) ───────────────────────────────────────
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm install
+
+COPY frontend/ ./frontend/
+RUN cd frontend && npm run build
+
+# ── Copy rest of project ──────────────────────────────────────────────────────
 COPY . .
 
-# Create runtime directories
+# ── Runtime directories ───────────────────────────────────────────────────────
 RUN mkdir -p /app/data /app/hf_cache
 
 EXPOSE 7860
