@@ -1,3 +1,14 @@
+---
+title: Hybrid RAG AI Assistant
+emoji: 🤖
+colorFrom: purple
+colorTo: blue
+sdk: docker
+pinned: false
+license: mit
+short_description: Hybrid RAG AI with FAISS + ChromaDB + LangChain + Groq
+---
+
 <div align="center">
 
 # 🤖 Loki AI — Hybrid RAG AI Assistant
