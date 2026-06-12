@@ -16,6 +16,12 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Loki AI Enterprise API", version="3.0", docs_url="/docs")
 
+# ── Instant health check (HuggingFace Spaces / Docker probe) ─────────────────
+# This MUST be the first route — returns before any heavy component loads.
+@app.get("/")
+def root_health():
+    return {"status": "healthy", "app": "Loki AI", "version": "3.0"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://frontend:3000", "*"],
@@ -31,34 +37,17 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 app.mount("/data", StaticFiles(directory=DATA_DIR), name="data")
 
-# ── RAG Engine ───────────────────────────────────────────────────────────────
-rag_engine = None
-try:
-    rag_engine = RAGEngine()
-    print("[API] RAG engine ready")
-except Exception as e:
-    print(f"[API Warning] RAG engine: {e}")
+# ── Lazy component singletons ────────────────────────────────────────────────
+# Nothing heavy is loaded at import time so HF health probes pass instantly.
+# Each getter initializes its component once on first actual request.
 
-# ── LangChain Agent ──────────────────────────────────────────────────────────
-loki_agent = None
-try:
-    from langchain_agent import LokiAgent
-    loki_agent = LokiAgent(rag_engine=rag_engine)
-    print("[API] LangChain agent ready")
-except Exception as e:
-    print(f"[API Warning] LangChain: {e}")
+_rag_engine     = None
+_loki_agent     = None
+_chroma_store   = None
+_tools_ecosystem = None
+DB_AVAILABLE    = False
 
-# ── ChromaDB ─────────────────────────────────────────────────────────────────
-chroma_store = None
-try:
-    from chroma_store import ChromaStore
-    chroma_store = ChromaStore(persist_dir=os.path.join(ROOT_DIR, "chroma_db"))
-    print("[API] ChromaDB ready")
-except Exception as e:
-    print(f"[API Warning] ChromaDB: {e}")
-
-# ── Database Layer ───────────────────────────────────────────────────────────
-DB_AVAILABLE = False
+# DB is lightweight (SQLite), safe to init eagerly
 try:
     import database
     database.init_db()
@@ -67,14 +56,69 @@ try:
 except Exception as e:
     print(f"[API Warning] DB initialization: {e}")
 
-# ── Tools Ecosystem ──────────────────────────────────────────────────────────
-tools_ecosystem = None
-try:
-    from tools_ecosystem import LokiToolEcosystem
-    tools_ecosystem = LokiToolEcosystem(rag_engine=rag_engine)
-    print("[API] Tools ecosystem ready")
-except Exception as e:
-    print(f"[API Warning] Tools ecosystem: {e}")
+
+def get_rag_engine():
+    global _rag_engine
+    if _rag_engine is None:
+        try:
+            _rag_engine = RAGEngine()
+            print("[API] RAG engine ready (lazy)")
+        except Exception as e:
+            print(f"[API Warning] RAG engine: {e}")
+    return _rag_engine
+
+
+def get_loki_agent():
+    global _loki_agent
+    if _loki_agent is None:
+        try:
+            from langchain_agent import LokiAgent
+            _loki_agent = LokiAgent(rag_engine=get_rag_engine())
+            print("[API] LangChain agent ready (lazy)")
+        except Exception as e:
+            print(f"[API Warning] LangChain: {e}")
+    return _loki_agent
+
+
+def get_chroma_store():
+    global _chroma_store
+    if _chroma_store is None:
+        try:
+            from chroma_store import ChromaStore
+            _chroma_store = ChromaStore(persist_dir=os.path.join(ROOT_DIR, "chroma_db"))
+            print("[API] ChromaDB ready (lazy)")
+        except Exception as e:
+            print(f"[API Warning] ChromaDB: {e}")
+    return _chroma_store
+
+
+def get_tools_ecosystem():
+    global _tools_ecosystem
+    if _tools_ecosystem is None:
+        try:
+            from tools_ecosystem import LokiToolEcosystem
+            _tools_ecosystem = LokiToolEcosystem(rag_engine=get_rag_engine())
+            print("[API] Tools ecosystem ready (lazy)")
+        except Exception as e:
+            print(f"[API Warning] Tools ecosystem: {e}")
+    return _tools_ecosystem
+
+
+@app.get("/warmup")
+def warmup():
+    """Explicitly trigger lazy initialization of all heavy components."""
+    get_rag_engine()
+    get_loki_agent()
+    get_chroma_store()
+    get_tools_ecosystem()
+    rag = get_rag_engine()
+    return {
+        "status": "warmed_up",
+        "rag_engine": rag is not None,
+        "langchain_agent": get_loki_agent() is not None,
+        "chroma_store": get_chroma_store() is not None,
+        "tools_ecosystem": get_tools_ecosystem() is not None,
+    }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Request Models
@@ -127,6 +171,9 @@ async def status():
     db_latency = round((time.time() - db_start) * 1000, 2)
 
     # Check vector DB status
+    rag_engine   = get_rag_engine()
+    chroma_store = get_chroma_store()
+    loki_agent   = get_loki_agent()
     vector_db_doc_count = 0
     if chroma_store and chroma_store.available:
         try: vector_db_doc_count = chroma_store.count()
@@ -187,6 +234,8 @@ async def status():
 
 @app.get("/stats")
 async def stats():
+    rag_engine   = get_rag_engine()
+    chroma_store = get_chroma_store()
     s = rag_engine.get_stats() if rag_engine else {}
     chroma_count = 0
     if chroma_store and chroma_store.available:
@@ -225,8 +274,9 @@ async def delete_session(session_id: str):
     if not DB_AVAILABLE:
         raise HTTPException(500, "Database not available")
     database.delete_session(session_id)
-    if rag_engine:
-        rag_engine.clear_history(session_id)
+    rag = get_rag_engine()
+    if rag:
+        rag.clear_history(session_id)
     return {"status": "success"}
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -234,12 +284,13 @@ async def delete_session(session_id: str):
 # ─────────────────────────────────────────────────────────────────────────────
 @app.post("/ask")
 async def ask(req: QueryRequest):
+    rag_engine = get_rag_engine()
     if not rag_engine:
         raise HTTPException(503, "RAG engine not initialized")
     q = req.question.strip()
     if not q:
         raise HTTPException(400, "Empty question")
-    
+
     if DB_AVAILABLE:
         database.log_metric("api_call", req.session_id)
         if "retrieve" in q.lower() or "search" in q.lower():
@@ -250,6 +301,7 @@ async def ask(req: QueryRequest):
 
 @app.post("/ask/stream")
 async def ask_stream(req: QueryRequest):
+    rag_engine = get_rag_engine()
     if not rag_engine:
         raise HTTPException(503, "RAG engine not initialized")
     q = req.question.strip()
@@ -258,7 +310,6 @@ async def ask_stream(req: QueryRequest):
 
     if DB_AVAILABLE:
         database.log_metric("api_call", req.session_id)
-        # log vector search if question looks like document query or retrieval
         if any(w in q.lower() for w in ["document", "upload", "pdf", "file", "search", "retrieve", "explain"]):
             database.log_metric("vector_search", req.session_id)
 
@@ -270,8 +321,9 @@ async def ask_stream(req: QueryRequest):
 
 @app.post("/clear")
 async def clear(req: ClearRequest):
-    if rag_engine:
-        rag_engine.clear_history(session_id=req.session_id)
+    rag = get_rag_engine()
+    if rag:
+        rag.clear_history(session_id=req.session_id)
     if DB_AVAILABLE:
         try: database.clear_chat_history(req.session_id)
         except: pass
@@ -291,6 +343,7 @@ async def chat_history(session_id: str = "default"):
 # ─────────────────────────────────────────────────────────────────────────────
 @app.post("/upload")
 async def upload(file: UploadFile = File(...), session_id: str = "default"):
+    rag_engine = get_rag_engine()
     allowed = [".pdf", ".txt"] + list(SUPPORTED_IMAGE_EXTS)
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in allowed:
@@ -301,11 +354,9 @@ async def upload(file: UploadFile = File(...), session_id: str = "default"):
         shutil.copyfileobj(file.file, f)
     size_kb = round(os.path.getsize(save_path) / 1024, 1)
 
-    # Log file upload metric
     if DB_AVAILABLE:
         database.log_metric("file_upload", session_id=session_id, metadata=f"{file.filename} ({size_kb} KB)")
 
-    # OCR for images
     if ext in SUPPORTED_IMAGE_EXTS:
         if DB_AVAILABLE:
             database.log_metric("ocr_request", session_id=session_id, metadata=file.filename)
@@ -314,7 +365,6 @@ async def upload(file: UploadFile = File(...), session_id: str = "default"):
         with open(txt_path, "w", encoding="utf-8") as tf:
             tf.write(ocr_text)
 
-    # Re-index
     try:
         from build_index import build_index
         build_index()
@@ -376,7 +426,8 @@ async def list_files():
             "category": cat,
             "timestamp": timestamp
         })
-    return {"files": files, "total": len(files), "chunks_indexed": len(rag_engine.chunks) if rag_engine else 0}
+    rag = get_rag_engine()
+    return {"files": files, "total": len(files), "chunks_indexed": len(rag.chunks) if rag else 0}
 
 @app.delete("/files/{filename}")
 async def delete_file(filename: str):
@@ -394,14 +445,15 @@ async def delete_file(filename: str):
     try:
         from build_index import build_index
         build_index()
-        if rag_engine:
+        rag = get_rag_engine()
+        if rag:
             import faiss, pickle
             idx = os.path.join(ROOT_DIR, "faiss_index.idx")
             chk = os.path.join(ROOT_DIR, "chunks.pkl")
-            if os.path.exists(idx): rag_engine.index = faiss.read_index(idx)
+            if os.path.exists(idx): rag.index = faiss.read_index(idx)
             if os.path.exists(chk):
-                with open(chk, "rb") as f: rag_engine.chunks = pickle.load(f)
-            rag_engine.reload_topics()
+                with open(chk, "rb") as f: rag.chunks = pickle.load(f)
+            rag.reload_topics()
     except: pass
     return {"status": "deleted", "file": filename}
 
@@ -433,10 +485,11 @@ async def clear_memories(session_id: str):
 # ─────────────────────────────────────────────────────────────────────────────
 @app.post("/tools/run")
 async def run_tool(req: ToolRunRequest):
-    if not tools_ecosystem:
+    tools = get_tools_ecosystem()
+    if not tools:
         raise HTTPException(503, "Tools ecosystem not initialized")
     try:
-        result = tools_ecosystem.run_tool(req.tool_name, req.payload)
+        result = tools.run_tool(req.tool_name, req.payload)
         return result
     except Exception as e:
         raise HTTPException(500, f"Tool execution failed: {str(e)}")
@@ -473,13 +526,15 @@ async def admin_stats(session_id: str = "local"):
 async def agent_ask(req: AgentRequest):
     if DB_AVAILABLE:
         database.log_metric("agent_execution", req.session_id)
-        
+
+    loki_agent = get_loki_agent()
     if not loki_agent or not getattr(loki_agent, "available", False):
         raise HTTPException(503, "LangChain agent not available")
     result = loki_agent.run(req.question)
     if result is None:
-        if rag_engine:
-            res = rag_engine.answer(req.question, session_id=req.session_id)
+        rag = get_rag_engine()
+        if rag:
+            res = rag.answer(req.question, session_id=req.session_id)
             return {"answer": res["answer"], "source": "rag_fallback", "agent_used": False}
         raise HTTPException(503, "No engine available")
     return {"answer": result, "source": "langchain_agent", "agent_used": True}
@@ -489,6 +544,7 @@ async def agent_ask(req: AgentRequest):
 # ─────────────────────────────────────────────────────────────────────────────
 @app.get("/chroma/status")
 async def chroma_status():
+    chroma_store = get_chroma_store()
     if not chroma_store or not chroma_store.available:
         return {"available": False, "doc_count": 0}
     return {"available": True, "doc_count": chroma_store.count()}
