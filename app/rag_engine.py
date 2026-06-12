@@ -6,12 +6,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── HuggingFace Cache ─────────────────────────────────────────────────────────
-if os.path.exists("/.dockerenv"):
-    os.environ["HF_HOME"] = "/app/hf_cache"
-elif os.path.exists("D:\\hf_cache"):
-    os.environ["HF_HOME"] = "D:\\hf_cache"
-else:
-    os.environ["HF_HOME"] = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "hf_cache")
+# HF_HOME is set via Dockerfile ENV for containers.
+# Falls back to a local hf_cache/ folder when running outside Docker.
+if not os.environ.get("HF_HOME"):
+    os.environ["HF_HOME"] = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "hf_cache"
+    )
 os.environ["SENTENCE_TRANSFORMERS_HOME"] = os.environ["HF_HOME"]
 
 from sentence_transformers import SentenceTransformer
